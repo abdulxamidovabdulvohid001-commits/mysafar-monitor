@@ -46,7 +46,7 @@
 <canvas id="c"></canvas>
 <div class="hud">
   <div class="t">🏢 MY<b>SAFAR</b> HQ</div>
-  <div class="m"><span><span class="dot"></span>Jonli</span><span>👥 2</span><span id="clock">--:--:--</span></div>
+  <div class="m"><span><span class="dot"></span>Jonli</span><span>👥 2</span><span id="clock">--:--:--</span><button id="fsBtn" style="pointer-events:auto;background:rgba(91,140,255,.25);border:1px solid #3b4780;color:#dfe6ff;border-radius:8px;padding:3px 10px;font-size:12px;cursor:pointer">⛶ To'liq ekran</button></div>
 </div>
 <div class="panel">
   <div class="card" id="tokCard"><h3>GitHub jonli ulanish</h3>
@@ -56,7 +56,9 @@
   </div>
   <div class="card"><h3>Agentlar</h3>
     <div class="ag"><span class="e">🤖</span><span class="n">Kontent boti</span><span class="s" id="s1">…</span></div>
+    <div style="font-size:10px;color:var(--dim);margin:-3px 0 8px 27px">Keyingi: <span id="botNext" style="color:#9fc0ff">…</span></div>
     <div class="ag"><span class="e">📝</span><span class="n">SEO agent</span><span class="s st" id="s2">⏳ kutmoqda</span></div>
+    <div style="font-size:10px;color:var(--dim);margin:-3px 0 0 27px">Keyingi: <span id="seoNext" style="color:#c9a0ff">…</span></div>
   </div>
   <div class="card"><h3>Hozir nima qilyapti</h3>
     <div id="nowLine" style="font-size:12px;line-height:1.5">…</div>
@@ -138,6 +140,11 @@ const seoDesk = desk(8,-5);
   const b=new THREE.Mesh(new THREE.BoxGeometry(3.4,0.7,1.5),mat(0x5f7bd6));b.position.y=0.6;b.castShadow=true;g.add(b);
   const bk=new THREE.Mesh(new THREE.BoxGeometry(3.4,1,0.4),mat(0x4a62b0));bk.position.set(0,1.1,-0.55);g.add(bk);
   g.position.set(8,0,6);S.add(g);})();
+// televizor (divan qarshisida)
+(function(){const st=new THREE.Mesh(new THREE.BoxGeometry(0.4,1.4,0.4),mat(0x2b2b3a));st.position.set(8,0.7,9.3);st.castShadow=true;S.add(st);
+  const tv=new THREE.Mesh(new THREE.BoxGeometry(3.2,1.9,0.25),mat(0x111318));tv.position.set(8,2.1,9.3);tv.castShadow=true;S.add(tv);
+  const scr=new THREE.Mesh(new THREE.BoxGeometry(2.9,1.6,0.05),new THREE.MeshBasicMaterial({color:0x5b8cff}));scr.position.set(8,2.1,9.16);S.add(scr);
+  window.__tv=scr;})();
 // kofe mashina
 (function(){const m=new THREE.Mesh(new THREE.BoxGeometry(1,2,1),mat(0xd64545));
   m.position.set(0,1,-7);m.castShadow=true;S.add(m);
@@ -306,21 +313,26 @@ function checkErr(){
   const fail=runs.find(r=>r.conclusion==='failure');
   const al=st.alerts&&Object.keys(st.alerts).length?st.alerts:null;
   let msg='';
+  const r0=runs[0];
   if(fail)msg='⚠️ Oxirgi ishlashда xatolik: run #'+fail.run_number+' ('+agoIso(fail.updated_at)+' oldin)';
   else if(al){const k=Object.keys(al)[0];msg='⚠️ Bot ogohlantirdi: '+k+' ('+agoIso(al[k])+' oldin)';}
+  else if(r0){const mins=(Date.now()-new Date(r0.updated_at||r0.created_at).getTime())/60000;
+    if(mins>70)msg='🔴 Bot '+Math.round(mins)+' daqiqadan beri ishlamadi — cron/server to\'xtagan bo\'lishi mumkin!';}
   if(msg){bar.textContent=msg;bar.style.display='block';}else{bar.style.display='none';}
 }
 
 // ---- JADVAL (namuna rejim) + POS ----
-const JADVAL={1:[["10:00","kun_taklifi"],["19:30","foydali_maslahat"]],
+const NARX=[["08:00","narx_post"],["14:00","narx_post"],["16:00","narx_post"],["18:00","narx_post"],["21:00","narx_post"]];
+const RUBR={1:[["10:00","kun_taklifi"],["12:00","maqola_havola"],["19:30","foydali_maslahat"]],
   2:[["10:00","kun_taklifi"],["19:30","sorovnoma"]],
-  3:[["09:30","yonalish_fokus"],["13:00","ichki_reyslar"],["19:30","mijoz_sharhi"]],
+  3:[["09:30","yonalish_fokus"],["12:00","maqola_havola"],["13:00","ichki_reyslar"],["19:30","mijoz_sharhi"]],
   4:[["10:00","kun_taklifi"],["19:30","foydali_maslahat"]],
-  5:[["09:30","haftalik_top5"],["19:30","sorovnoma"]],
+  5:[["09:30","haftalik_top5"],["12:00","maqola_havola"],["13:00","aksiya"],["19:30","sorovnoma"]],
   6:[["11:00","kun_taklifi"],["19:30","foydali_maslahat"]],
   0:[["11:00","ichki_reyslar"],["19:30","sorovnoma"]]};
+const JADVAL={};for(let d=0;d<7;d++){JADVAL[d]=[...(RUBR[d]||[]),...NARX].sort((a,b)=>a[0].localeCompare(b[0]));}
 const ISH_B=9*60,ISH_O=22*60+30,OYNA=90;
-const POS={botDesk:[-8,-3.2],seoDesk:[8,-3.2],kofe:[0,-5.3],divan:[7,5],divan2:[9,5],kutish:[-3,3]};
+const POS={botDesk:[-8,-3.2],seoDesk:[8,-3.2],kofe:[0,-5.3],divan:[7,5],divan2:[9,5],kutish:[-3,3],tv:[7,5.5],sport:[2,7],cigar:[-9,7]};
 const toshkent=()=>{const d=new Date();return new Date(d.getTime()+(5*60+d.getTimezoneOffset())*60000);};
 const mm=d=>d.getHours()*60+d.getMinutes();
 const p2=n=>String(n).padStart(2,'0');
@@ -336,8 +348,9 @@ function logic(){
   if(m<ISH_B||m>=ISH_O){pos=POS.divan;tag='😴 uxlayapti';badge='😴 dam';bc='ss';botMode='sleep';}
   else if(active){pos=POS.botDesk;tag='✍️ '+RUB[active.r];badge='✍️ yozmoqda';bc='sw';botMode='work';}
   else if(m%30<3){pos=POS.botDesk;tag='🔍 narx skaneri';badge='🔍 skaner';bc='sc';botMode='work';}
-  else if(m<ISH_B+25){pos=POS.kofe;tag='☕ kofe';badge='☕ kofe';bc='sc';botMode='walk';}
-  else {pos=POS.botDesk;tag='👀 narx kuzatuvi';badge='👀 kuzatuv';bc='sc';botMode='work';}
+  else if(active){pos=POS.botDesk;tag='✍️ '+RUB[active.r];badge='✍️ yozmoqda';bc='sw';botMode='work';}
+  else {const acts=[['tv','📺 televizor','watch'],['sport','🏓 sport','sport'],['kofe','☕ kofe','coffee'],['cigar','🚬 tanaffus','smoke']];
+    const a=acts[Math.floor(m/13)%4];pos=POS[a[0]];tag=a[1];badge=a[1];bc='sc';botMode=a[2];}
   const L=live.ok?liveStatus():null;
   if(L){badge=L.badge;bc=L.bc;botMode=L.mode;pos=L.pos;tag=L.tag;
     document.getElementById('nowLine').innerHTML=L.now;
@@ -358,6 +371,8 @@ function logic(){
     const[h,mi]=f[0].split(':').map(Number);nd=(24*60-m)+h*60+mi;}
   const sec=nd*60-t.getSeconds();
   document.getElementById('cd').textContent=p2(Math.floor(sec/3600))+':'+p2(Math.floor(sec%3600/60))+':'+p2(sec%60);
+  document.getElementById('botNext').textContent=next?(next.hm+' · '+(RUB[next.r]||next.r)):'ertaga ertalab';
+  document.getElementById('seoNext').textContent=nextSeo()+' · trend maqola';
 }
 logic(); renderNext10(); setInterval(logic,1000); setInterval(renderNext10,60000);
 fetchLive(); setInterval(fetchLive,45000);
@@ -387,6 +402,20 @@ function animate(){
         p.userData.armL.rotation.x*=0.8;p.userData.armR.rotation.x*=0.8;
         p.position.y=0.6+Math.sin(tm*1.5)*0.03;
         p.rotation.z=Math.PI/2.3;
+      } else if(mode==='watch'){ // televizor ko'ryapti
+        p.rotation.z=0;p.position.y=0;p.rotation.y=Math.atan2(8-p.position.x,9.3-p.position.z);
+        p.userData.armL.rotation.x*=0.85;p.userData.armR.rotation.x*=0.85;
+      } else if(mode==='sport'){ // sport
+        p.rotation.z=0;const sw=Math.sin(tm*7)*0.9;
+        p.userData.armL.rotation.x=sw;p.userData.armR.rotation.x=-sw;
+        p.userData.legL.rotation.x=-sw*0.4;p.userData.legR.rotation.x=sw*0.4;
+        p.position.y=Math.abs(Math.sin(tm*7))*0.16;
+      } else if(mode==='smoke'){ // tanaffus (qo'lini goh boshiga)
+        p.rotation.z=0;p.position.y=0;
+        p.userData.armR.rotation.x=Math.sin(tm*1.1)>0.5?-1.5:-0.25;
+        p.userData.armL.rotation.x*=0.85;
+      } else if(mode==='coffee'){ p.rotation.z=0;p.position.y=0;
+        p.userData.armR.rotation.x=-0.85;p.userData.armL.rotation.x*=0.85;
       } else {
         p.rotation.z=0;p.position.y=0;
         p.userData.armL.rotation.x*=0.85;p.userData.armR.rotation.x*=0.85;
@@ -394,6 +423,7 @@ function animate(){
     }
     if(mode!=='sleep')p.rotation.z=0;
   });
+  if(window.__tv)window.__tv.material.color.setHSL((tm*0.08)%1,0.55,0.55);
   updCam();
   R.render(S,cam);
 }
@@ -408,6 +438,11 @@ addEventListener('mousemove',e=>{if(drag){camAng-=(e.clientX-px)*0.006;px=e.clie
 addEventListener('wheel',e=>{camDist=Math.max(14,Math.min(40,camDist+e.deltaY*0.02));},{passive:true});
 addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();R.setSize(innerWidth,innerHeight);});
 setInterval(()=>{if(!drag)camAng+=0.0015;},30);
+// to'liq ekran
+document.getElementById('fsBtn').onclick=()=>{const d=document.documentElement;
+  if(!document.fullscreenElement){(d.requestFullscreen||d.webkitRequestFullscreen||d.msRequestFullscreen).call(d);
+    document.getElementById('fsBtn').textContent='⛶ Chiqish';}
+  else{document.exitFullscreen&&document.exitFullscreen();document.getElementById('fsBtn').textContent='⛶ To\'liq ekran';}};
 </script>
 </body>
 </html>

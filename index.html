@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MySafar HQ — 3D Virtual Ofis</title>
+<style>
+  :root{--acc:#5b8cff;--ok:#37d67a;--warn:#ffb020;--ink:#eef1ff;--dim:#98a0cc}
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;background:#0c0f22;font-family:'Segoe UI',system-ui,sans-serif;color:var(--ink)}
+  #c{position:fixed;inset:0}
+  .hud{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;
+    align-items:center;padding:12px 20px;z-index:10;pointer-events:none}
+  .hud .t{font-size:15px;letter-spacing:3px;font-weight:700;text-shadow:0 2px 8px #000}
+  .hud .t b{color:var(--acc)}
+  .hud .m{display:flex;gap:16px;font-size:13px;color:#cdd3ff;text-shadow:0 1px 4px #000}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);display:inline-block;
+    margin-right:5px;box-shadow:0 0 8px var(--ok);animation:p 2s infinite}
+  @keyframes p{0%,100%{opacity:1}50%{opacity:.4}}
+  .panel{position:fixed;top:56px;right:14px;width:280px;z-index:10;
+    display:flex;flex-direction:column;gap:10px;max-height:calc(100vh - 68px);overflow:auto}
+  .panel::-webkit-scrollbar{width:6px}.panel::-webkit-scrollbar-thumb{background:#2b3057;border-radius:3px}
+  .tin{width:100%;background:#11142a;border:1px solid #2b3057;color:var(--ink);border-radius:8px;padding:6px 8px;font-size:11px}
+  .tbtn{margin-top:6px;width:100%;background:var(--acc);border:0;color:#fff;border-radius:8px;padding:6px;font-size:11px;cursor:pointer}
+  #hist div{border-bottom:1px solid #232847;padding:3px 0}
+  .card{background:rgba(23,26,53,.9);backdrop-filter:blur(10px);border:1px solid #2b3057;
+    border-radius:14px;padding:13px 15px}
+  .card h3{font-size:10px;letter-spacing:1.4px;color:var(--dim);text-transform:uppercase;margin-bottom:9px}
+  .ag{display:flex;align-items:center;gap:9px;margin-bottom:7px}
+  .ag .e{font-size:18px}.ag .n{font-size:12px;flex:1}
+  .ag .s{font-size:10px;padding:2px 8px;border-radius:12px;white-space:nowrap}
+  .sw{background:rgba(91,140,255,.2);color:#9fc0ff}
+  .ss{background:rgba(152,160,204,.15);color:#b3b9dc}
+  .st{background:rgba(255,176,32,.15);color:#ffcf7a}
+  .sc{background:rgba(55,214,122,.15);color:#7fe6a8}
+  .next b{color:var(--ok);font-size:14px}
+  .cd{font-size:24px;font-variant-numeric:tabular-nums;margin-top:2px}
+  .who{font-size:11px;color:var(--dim);margin-top:4px}
+  .hint{position:fixed;bottom:12px;left:20px;font-size:11px;color:#6b729c;z-index:10;text-shadow:0 1px 4px #000}
+  .load{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+    background:#0c0f22;z-index:20;color:var(--dim);font-size:14px}
+</style>
+</head>
+<body>
+<div class="load" id="load">🏢 Ofis yuklanmoqda…</div>
+<canvas id="c"></canvas>
+<div class="hud">
+  <div class="t">🏢 MY<b>SAFAR</b> HQ</div>
+  <div class="m"><span><span class="dot"></span>Jonli</span><span>👥 2</span><span id="clock">--:--:--</span></div>
+</div>
+<div class="panel">
+  <div class="card" id="tokCard"><h3>GitHub jonli ulanish</h3>
+    <input id="tok" class="tin" placeholder="read-only token (github_pat_… yoki ghp_…)">
+    <button id="tokBtn" class="tbtn">Ulash</button>
+    <div id="tokMsg" style="font-size:10px;color:var(--dim);margin-top:6px">Token yo'q — namuna rejimi</div>
+  </div>
+  <div class="card"><h3>Agentlar</h3>
+    <div class="ag"><span class="e">🤖</span><span class="n">Kontent boti</span><span class="s" id="s1">…</span></div>
+    <div class="ag"><span class="e">📝</span><span class="n">SEO agent</span><span class="s st" id="s2">⏳ kutmoqda</span></div>
+  </div>
+  <div class="card"><h3>Hozir nima qilyapti</h3>
+    <div id="nowLine" style="font-size:12px;line-height:1.5">…</div>
+    <div id="lastRun" style="font-size:10px;color:var(--dim);margin-top:6px"></div>
+  </div>
+  <div class="card"><h3>Keyingi vazifa</h3>
+    <div class="next" id="next">…</div><div class="cd" id="cd">--:--:--</div>
+  </div>
+  <div class="card"><h3>Keyingi 10 vazifa</h3>
+    <div id="next10" style="font-size:11px;line-height:1.7;max-height:24vh;overflow:auto">…</div>
+  </div>
+  <div class="card"><h3>Ishlar tarixi</h3>
+    <div id="hist" style="font-size:11px;line-height:1.6;max-height:26vh;overflow:auto">Ulanmagan…</div>
+  </div>
+</div>
+<div id="errBar" style="position:fixed;top:44px;left:14px;right:310px;z-index:11;display:none;background:rgba(214,69,69,.92);color:#fff;padding:8px 14px;border-radius:10px;font-size:12px;box-shadow:0 4px 16px rgba(0,0,0,.4)"></div>
+<div class="hint">🖱 Sichqoncha bilan aylantiring · g'ildirak bilan yaqinlashtiring</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const S = new THREE.Scene();
+S.background = new THREE.Color(0x0c0f22);
+S.fog = new THREE.Fog(0x0c0f22, 28, 55);
+
+const cam = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.1, 200);
+let camAng = -0.7, camDist = 26, camH = 20, camTarget = new THREE.Vector3(0,0,0);
+function updCam(){
+  cam.position.set(Math.sin(camAng)*camDist, camH, Math.cos(camAng)*camDist);
+  cam.lookAt(camTarget);
+}
+const R = new THREE.WebGLRenderer({canvas:document.getElementById('c'),antialias:true});
+R.setSize(innerWidth,innerHeight); R.setPixelRatio(Math.min(devicePixelRatio,2));
+R.shadowMap.enabled = true; R.shadowMap.type = THREE.PCFSoftShadowMap;
+
+// yorug'lik
+S.add(new THREE.AmbientLight(0xffffff,0.72));
+const sun = new THREE.DirectionalLight(0xffffff,0.85);
+sun.position.set(14,26,10); sun.castShadow = true;
+sun.shadow.mapSize.set(1024,1024);
+sun.shadow.camera.left=-22;sun.shadow.camera.right=22;sun.shadow.camera.top=22;sun.shadow.camera.bottom=-22;
+S.add(sun);
+S.add(new THREE.HemisphereLight(0xbfd0ff,0x8a6a45,0.4));
+
+const mat = (c)=>new THREE.MeshLambertMaterial({color:c});
+
+// ---- POL ----
+const FW=26, FD=20;
+const floor = new THREE.Mesh(new THREE.BoxGeometry(FW,0.6,FD), mat(0xe9d9c2));
+floor.position.y=-0.3; floor.receiveShadow=true; S.add(floor);
+// plitka chiziqlari
+const grid = new THREE.GridHelper(FW, 13, 0xcbb896, 0xd8c9ae);
+grid.position.y=0.02; grid.material.opacity=0.5; grid.material.transparent=true; S.add(grid);
+// devorlar (past)
+function wall(w,h,d,x,y,z){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat(0x3a3660));
+  m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;S.add(m);}
+wall(FW,3,0.4,0,1.5,-FD/2);      // orqa
+wall(0.4,3,FD,-FW/2,1.5,0);      // chap
+wall(0.4,3,FD, FW/2,1.5,0);      // o'ng (past)
+
+// ---- MEBEL ----
+function desk(x,z,label){
+  const g=new THREE.Group();
+  const top=new THREE.Mesh(new THREE.BoxGeometry(3,0.3,1.8),mat(0xc98b52));
+  top.position.y=1.5;top.castShadow=true;g.add(top);
+  [[-1.3,0.7],[1.3,0.7],[-1.3,-0.7],[1.3,-0.7]].forEach(([lx,lz])=>{
+    const leg=new THREE.Mesh(new THREE.BoxGeometry(0.18,1.5,0.18),mat(0xa06e3d));
+    leg.position.set(lx,0.75,lz);g.add(leg);});
+  const mon=new THREE.Mesh(new THREE.BoxGeometry(1,0.7,0.1),mat(0x2b3556));
+  mon.position.set(0,2.05,-0.3);mon.castShadow=true;g.add(mon);
+  const scr=new THREE.Mesh(new THREE.BoxGeometry(0.85,0.55,0.02),mat(0x5b8cff));
+  scr.position.set(0,2.05,-0.24);g.add(scr);
+  g.position.set(x,0,z);S.add(g);return g;
+}
+const botDesk = desk(-8,-5);
+const seoDesk = desk(8,-5);
+
+// divan
+(function(){const g=new THREE.Group();
+  const b=new THREE.Mesh(new THREE.BoxGeometry(3.4,0.7,1.5),mat(0x5f7bd6));b.position.y=0.6;b.castShadow=true;g.add(b);
+  const bk=new THREE.Mesh(new THREE.BoxGeometry(3.4,1,0.4),mat(0x4a62b0));bk.position.set(0,1.1,-0.55);g.add(bk);
+  g.position.set(8,0,6);S.add(g);})();
+// kofe mashina
+(function(){const m=new THREE.Mesh(new THREE.BoxGeometry(1,2,1),mat(0xd64545));
+  m.position.set(0,1,-7);m.castShadow=true;S.add(m);
+  const c=new THREE.Mesh(new THREE.BoxGeometry(0.8,0.3,0.8),mat(0x2b2b3a));c.position.set(0,2.15,-7);S.add(c);})();
+// stol tennis
+(function(){const t=new THREE.Mesh(new THREE.BoxGeometry(4,0.2,2.2),mat(0x2aa84f));
+  t.position.set(-7,1,7);t.castShadow=true;S.add(t);
+  const net=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.5,2.2),mat(0xffffff));net.position.set(-7,1.35,7);S.add(net);})();
+// o'simliklar
+function plant(x,z){const g=new THREE.Group();
+  const pot=new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.28,0.6,8),mat(0xb0743f));pot.position.y=0.3;g.add(pot);
+  const lv=new THREE.Mesh(new THREE.SphereGeometry(0.7,8,8),mat(0x3fa66a));lv.position.y=1.1;lv.castShadow=true;g.add(lv);
+  g.position.set(x,0,z);S.add(g);}
+plant(-11,-8);plant(11,-8);plant(-11,7);
+
+// gilam
+(function(){const r=new THREE.Mesh(new THREE.BoxGeometry(7,0.05,5),
+  new THREE.MeshLambertMaterial({color:0x5b8cff,transparent:true,opacity:0.14}));
+  r.position.set(0,0.05,1);S.add(r);})();
+
+// ---- PERSONAJ (voxel, blocky) ----
+function person(skin,shirt,pants){
+  const g=new THREE.Group();
+  const legL=new THREE.Mesh(new THREE.BoxGeometry(0.32,0.8,0.32),mat(pants));legL.position.set(-0.2,0.4,0);g.add(legL);
+  const legR=legL.clone();legR.position.x=0.2;g.add(legR);
+  const body=new THREE.Mesh(new THREE.BoxGeometry(0.8,0.9,0.45),mat(shirt));body.position.y=1.25;body.castShadow=true;g.add(body);
+  const armL=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.8,0.2),mat(shirt));armL.position.set(-0.52,1.25,0);g.add(armL);
+  const armR=armL.clone();armR.position.x=0.52;g.add(armR);
+  const head=new THREE.Mesh(new THREE.BoxGeometry(0.6,0.6,0.6),mat(skin));head.position.y=2.05;head.castShadow=true;g.add(head);
+  const hair=new THREE.Mesh(new THREE.BoxGeometry(0.64,0.2,0.64),mat(0x2a2320));hair.position.y=2.38;g.add(hair);
+  g.userData={legL,legR,armL,armR,head};
+  S.add(g);return g;
+}
+const bot = person(0xe8b98c,0x5b8cff,0x2b3556); // kontent boti
+const seo = person(0xe8b98c,0x8b7bd6,0x333355); // seo agent
+
+// bosh ustidagi yorliq (sprite)
+function makeTag(text){
+  const cv=document.createElement('canvas');cv.width=256;cv.height=64;
+  const x=cv.getContext('2d');
+  function draw(t){x.clearRect(0,0,256,64);x.fillStyle='rgba(17,20,40,.92)';
+    roundRect(x,8,8,240,48,12);x.fill();
+    x.fillStyle='#fff';x.font='bold 22px Segoe UI, sans-serif';x.textAlign='center';
+    x.fillText(t,128,40);}
+  function roundRect(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);
+    c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
+  draw(text);
+  const tex=new THREE.CanvasTexture(cv);
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,depthTest:false}));
+  sp.scale.set(3.4,0.85,1);sp.position.y=3.1;
+  sp.userData={cv,x,draw,tex};
+  return sp;
+}
+const botTag=makeTag('...');bot.add(botTag);
+const seoTag=makeTag('⏳ kutmoqda');seo.add(seoTag);
+function setTag(sp,t){sp.userData.draw(t);sp.userData.tex.needsUpdate=true;}
+
+// ---- RUB + JONLI HOLAT ----
+const RUB={kun_taklifi:"✈️ Kun taklifi",yonalish_fokus:"🎯 Yo'nalish fokusi",
+  haftalik_top5:"📊 TOP-5",ichki_reyslar:"🇺🇿 Ichki reyslar",
+  foydali_maslahat:"💡 Maslahat",sorovnoma:"🗳 So'rovnoma",mijoz_sharhi:"💬 Sharh",
+  narx_post:"🔥 Narx posti",hot_deal:"🚨 Qaynoq narx",aksiya:"⚡ Aksiya",maqola_havola:"📰 Maqola"};
+
+// ---- GITHUB JONLI ULANISH ----
+const GH={owner:"abdulxamidovabdulvohid001-commits",repo:"mysafar-tg-bot"};
+let TOK=localStorage.getItem('mysafar_gh_tok')||'';
+let live={runs:[],state:{},ok:false};
+const tokEl=document.getElementById('tok'),tokMsg=document.getElementById('tokMsg');
+if(TOK)tokEl.value=TOK;
+document.getElementById('tokBtn').onclick=()=>{TOK=tokEl.value.trim();localStorage.setItem('mysafar_gh_tok',TOK);fetchLive();};
+async function ghGet(path){
+  const r=await fetch(`https://api.github.com/repos/${GH.owner}/${GH.repo}/${path}`,
+    {headers:{Authorization:'Bearer '+TOK,Accept:'application/vnd.github+json'}});
+  if(!r.ok)throw new Error(r.status);
+  return r.json();
+}
+async function fetchLive(){
+  if(!TOK){live.ok=false;tokMsg.textContent="Token yo'q — namuna rejimi";tokMsg.style.color='var(--dim)';return;}
+  try{
+    const runs=await ghGet('actions/runs?per_page=8');
+    const cf=await ghGet('contents/state.json');
+    const st=JSON.parse(decodeURIComponent(escape(atob((cf.content||'').replace(/\n/g,'')))));
+    let sched=null;
+    try{const ccf=await ghGet('contents/config.json');
+      const cc=JSON.parse(decodeURIComponent(escape(atob((ccf.content||'').replace(/\n/g,'')))));
+      sched=cc.kunlik_jadval||null;}catch(e){}
+    live={runs:runs.workflow_runs||[],state:st,ok:true,sched};
+    checkErr();renderNext10();
+    tokMsg.textContent='✅ GitHub ulandi · jonli';tokMsg.style.color='var(--ok)';
+    document.getElementById('tokCard').style.opacity=.55;
+    renderHist();
+  }catch(e){live.ok=false;
+    tokMsg.textContent='❌ '+(e.message==='401'?'token xato':e.message==='404'?'topilmadi':'xato '+e.message);
+    tokMsg.style.color='var(--warn)';}
+}
+function minsAgo(sana){try{const[d,ti]=sana.split('T');const[Y,Mo,D]=d.split('-').map(Number);
+  const[h,mi]=ti.split(':').map(Number);const n=toshkent();
+  return Math.round((Date.UTC(n.getFullYear(),n.getMonth(),n.getDate(),n.getHours(),n.getMinutes())-Date.UTC(Y,Mo-1,D,h,mi))/60000);}catch(e){return 9999;}}
+function agoStr(m){return m<60?m+' daq':Math.round(m/60)+' soat';}
+function agoIso(iso){const s=Math.round((Date.now()-new Date(iso).getTime())/1000);
+  return s<60?s+'s':s<3600?Math.round(s/60)+'daq':Math.round(s/3600)+'soat';}
+function renderHist(){
+  const h=document.getElementById('hist');const posted=((live.state||{}).posted||[]).slice(-14).reverse();
+  if(!posted.length){h.textContent="Tarix yo'q";return;}
+  h.innerHTML=posted.map(p=>{const tm=(p.sana||'').split('T')[1]||'';const dd=((p.sana||'').split('T')[0]||'').slice(5);
+    const ic=(RUB[p.rubrika]||p.rubrika||'•').split(' ')[0];
+    const yon=p.yon?' <span style="color:#9fc0ff">'+p.yon+'</span>':(p.sabab==='skip'?" <span style=\"color:var(--warn)\">o'tkazildi</span>":'');
+    return `<div><b>${tm}</b> ${ic}${yon} <span style="color:#5b6089">${dd}</span></div>`;}).join('');
+}
+function liveStatus(){
+  const runs=live.runs||[],st=live.state||{},posted=st.posted||[];
+  const last=posted[posted.length-1];
+  const running=runs.find(r=>r.status==='in_progress'||r.status==='queued');
+  const r0=runs[0];
+  const lastRun=r0?('Oxirgi run: '+(r0.conclusion||r0.status)+' · '+agoIso(r0.updated_at||r0.created_at)+' oldin'):'';
+  if(running)return{badge:'🔴 ishlamoqda',bc:'sw',mode:'work',pos:POS.botDesk,tag:'⚙️ ishlamoqda',
+    now:'🔴 <b>Hozir ishlamoqda…</b><br><span style="color:var(--dim)">Actions run #'+running.run_number+'</span>',lastRun};
+  if(last){const a=minsAgo(last.sana);const nom=(RUB[last.rubrika]||last.rubrika)+(last.yon?' · '+last.yon:'');
+    if(a<8)return{badge:'✅ post chiqardi',bc:'sc',mode:'work',pos:POS.botDesk,tag:'✅ '+(RUB[last.rubrika]||last.rubrika),
+      now:'✅ <b>Hozirgina post chiqardi</b><br><span style="color:#9fc0ff">'+nom+'</span>',lastRun};
+    return{badge:'👀 kuzatuv',bc:'sc',mode:'work',pos:POS.botDesk,tag:'👀 narx kuzatuvi',
+      now:'👀 Narx kuzatuvida<br><span style="color:var(--dim)">oxirgi post '+agoStr(a)+' oldin: '+nom+'</span>',lastRun};}
+  return{badge:'💤 kutmoqda',bc:'ss',mode:'idle',pos:POS.kofe,tag:'☕ kutmoqda',now:"Hali post yo'q",lastRun};
+}
+
+// ---- KEYINGI 10 VAZIFA + XATOLIK ----
+function haftaKun(d){return ["Yak","Du","Se","Chor","Pay","Ju","Sha"][d];}
+function next10(){
+  const now=toshkent(),nowM=now.getHours()*60+now.getMinutes(),out=[];
+  const sched=(live.ok&&live.sched)?live.sched:null;
+  for(let off=0;off<21&&out.length<10;off++){
+    const d=new Date(now.getTime()+off*86400000);
+    const ds=d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());
+    let slots;
+    if(sched&&sched[ds])slots=sched[ds].map(x=>({hm:x.vaqt,r:x.rubrika,tg:x.target}));
+    else slots=((typeof JADVAL!=='undefined'?JADVAL:{})[d.getDay()]||[]).map(([hm,r])=>({hm,r}));
+    slots.sort((a,b)=>a.hm.localeCompare(b.hm));
+    for(const s of slots){
+      const[h,mi]=s.hm.split(':').map(Number);
+      if(off===0&&h*60+mi<nowM)continue;
+      out.push({lab:off===0?'Bugun':off===1?'Ertaga':haftaKun(d.getDay()),hm:s.hm,r:s.r,tg:s.tg});
+      if(out.length>=10)break;
+    }
+  }
+  return out;
+}
+function renderNext10(){
+  const el=document.getElementById('next10');if(!el)return;
+  const arr=next10();
+  const seo=nextSeo();
+  let html=arr.map(x=>{const ic=(RUB[x.r]||x.r||'•');const tg=x.tg&&x.tg!=='trend'?' '+x.tg:(x.tg==='trend'?' (AI)':'');
+    return `<div style="border-bottom:1px solid #232847;padding:2px 0"><span style="color:#5b6089">${x.lab}</span> <b>${x.hm}</b> ${ic}${tg}</div>`;}).join('');
+  html+=`<div style="border-bottom:1px solid #232847;padding:2px 0;color:#c9a0ff">📝 SEO: <b>${seo}</b> — trend maqola</div>`;
+  el.innerHTML=html||'Jadval yo\'q';
+}
+function nextSeo(){
+  const now=toshkent();
+  for(let off=0;off<8;off++){const d=new Date(now.getTime()+off*86400000);const wd=d.getDay();
+    if([1,3,5].includes(wd)&&!(off===0&&now.getHours()>=9))
+      return (off===0?'Bugun':off===1?'Ertaga':haftaKun(wd))+' 09:00';}
+  return 'Du 09:00';
+}
+function checkErr(){
+  const bar=document.getElementById('errBar');if(!bar)return;
+  const runs=live.runs||[],st=live.state||{};
+  const fail=runs.find(r=>r.conclusion==='failure');
+  const al=st.alerts&&Object.keys(st.alerts).length?st.alerts:null;
+  let msg='';
+  if(fail)msg='⚠️ Oxirgi ishlashда xatolik: run #'+fail.run_number+' ('+agoIso(fail.updated_at)+' oldin)';
+  else if(al){const k=Object.keys(al)[0];msg='⚠️ Bot ogohlantirdi: '+k+' ('+agoIso(al[k])+' oldin)';}
+  if(msg){bar.textContent=msg;bar.style.display='block';}else{bar.style.display='none';}
+}
+
+// ---- JADVAL (namuna rejim) + POS ----
+const JADVAL={1:[["10:00","kun_taklifi"],["19:30","foydali_maslahat"]],
+  2:[["10:00","kun_taklifi"],["19:30","sorovnoma"]],
+  3:[["09:30","yonalish_fokus"],["13:00","ichki_reyslar"],["19:30","mijoz_sharhi"]],
+  4:[["10:00","kun_taklifi"],["19:30","foydali_maslahat"]],
+  5:[["09:30","haftalik_top5"],["19:30","sorovnoma"]],
+  6:[["11:00","kun_taklifi"],["19:30","foydali_maslahat"]],
+  0:[["11:00","ichki_reyslar"],["19:30","sorovnoma"]]};
+const ISH_B=9*60,ISH_O=22*60+30,OYNA=90;
+const POS={botDesk:[-8,-3.2],seoDesk:[8,-3.2],kofe:[0,-5.3],divan:[7,5],divan2:[9,5],kutish:[-3,3]};
+const toshkent=()=>{const d=new Date();return new Date(d.getTime()+(5*60+d.getTimezoneOffset())*60000);};
+const mm=d=>d.getHours()*60+d.getMinutes();
+const p2=n=>String(n).padStart(2,'0');
+const target={bot:new THREE.Vector3(-8,0,-3.2),seo:new THREE.Vector3(-3,0,3)};
+let botMode='idle',seoMode='wait';
+
+function logic(){
+  const t=toshkent(),m=mm(t),day=t.getDay();
+  document.getElementById('clock').textContent=p2(t.getHours())+':'+p2(t.getMinutes())+':'+p2(t.getSeconds());
+  const slots=(JADVAL[day]||[]).map(([hm,r])=>{const[h,mi]=hm.split(':').map(Number);return{min:h*60+mi,hm,r};});
+  const active=slots.find(s=>m>=s.min&&m<s.min+OYNA);
+  let pos,tag,badge,bc;
+  if(m<ISH_B||m>=ISH_O){pos=POS.divan;tag='😴 uxlayapti';badge='😴 dam';bc='ss';botMode='sleep';}
+  else if(active){pos=POS.botDesk;tag='✍️ '+RUB[active.r];badge='✍️ yozmoqda';bc='sw';botMode='work';}
+  else if(m%30<3){pos=POS.botDesk;tag='🔍 narx skaneri';badge='🔍 skaner';bc='sc';botMode='work';}
+  else if(m<ISH_B+25){pos=POS.kofe;tag='☕ kofe';badge='☕ kofe';bc='sc';botMode='walk';}
+  else {pos=POS.botDesk;tag='👀 narx kuzatuvi';badge='👀 kuzatuv';bc='sc';botMode='work';}
+  const L=live.ok?liveStatus():null;
+  if(L){badge=L.badge;bc=L.bc;botMode=L.mode;pos=L.pos;tag=L.tag;
+    document.getElementById('nowLine').innerHTML=L.now;
+    document.getElementById('lastRun').textContent=L.lastRun;}
+  else{document.getElementById('nowLine').innerHTML=active?('✍️ '+RUB[active.r]+' <span style="color:var(--dim)">(namuna — token ulang)</span>'):'👀 Narx kuzatuvida <span style="color:var(--dim)">(namuna)</span>';
+    document.getElementById('lastRun').textContent='';}
+  target.bot.set(pos[0],0,pos[1]); setTag(botTag,tag);
+  const s1=document.getElementById('s1');s1.textContent=badge;s1.className='s '+bc;
+  if(m<ISH_B||m>=ISH_O){target.seo.set(POS.divan2[0],0,POS.divan2[1]);seoMode='sleep';setTag(seoTag,'😴 uxlayapti');
+    document.getElementById('s2').textContent='😴 dam';document.getElementById('s2').className='s ss';}
+  else{target.seo.set(POS.kutish[0],0,POS.kutish[1]);seoMode='wait';
+    const seoNext=nextSeo();setTag(seoTag,'⏳ '+seoNext);
+    document.getElementById('s2').textContent='⏳ '+seoNext;document.getElementById('s2').className='s st';
+    document.getElementById('s2').title='Blog + trend maqola kutmoqda · keyingi: '+seoNext;}
+  let next=slots.find(s=>m<s.min),nd;
+  if(next){nd=next.min-m;document.getElementById('next').innerHTML=`<b>${next.hm}</b> — ${RUB[next.r]}`;}
+  else{const n2=(day+1)%7,f=(JADVAL[n2]||[])[0];document.getElementById('next').innerHTML=`Ertaga <b>${f[0]}</b> — ${RUB[f[1]]}`;
+    const[h,mi]=f[0].split(':').map(Number);nd=(24*60-m)+h*60+mi;}
+  const sec=nd*60-t.getSeconds();
+  document.getElementById('cd').textContent=p2(Math.floor(sec/3600))+':'+p2(Math.floor(sec%3600/60))+':'+p2(sec%60);
+}
+logic(); renderNext10(); setInterval(logic,1000); setInterval(renderNext10,60000);
+fetchLive(); setInterval(fetchLive,45000);
+
+// ---- ANIMATSIYA ----
+let clock=new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt=clock.getDelta(), tm=clock.getElapsedTime();
+  [[bot,target.bot,botMode],[seo,target.seo,seoMode]].forEach(([p,tg,mode])=>{
+    const dx=tg.x-p.position.x, dz=tg.z-p.position.z;
+    const dist=Math.hypot(dx,dz);
+    if(dist>0.08){
+      p.position.x+=dx*Math.min(1,dt*2.2);
+      p.position.z+=dz*Math.min(1,dt*2.2);
+      p.rotation.y=Math.atan2(dx,dz);
+      const sw=Math.sin(tm*9)*0.5;
+      p.userData.legL.rotation.x=sw;p.userData.legR.rotation.x=-sw;
+      p.userData.armL.rotation.x=-sw;p.userData.armR.rotation.x=sw;
+    } else {
+      p.userData.legL.rotation.x*=0.8;p.userData.legR.rotation.x*=0.8;
+      if(mode==='work'){
+        p.userData.armL.rotation.x=-0.9+Math.sin(tm*8)*0.2;
+        p.userData.armR.rotation.x=-0.9+Math.cos(tm*8)*0.2;
+        p.position.y=0;
+      } else if(mode==='sleep'){
+        p.userData.armL.rotation.x*=0.8;p.userData.armR.rotation.x*=0.8;
+        p.position.y=0.6+Math.sin(tm*1.5)*0.03;
+        p.rotation.z=Math.PI/2.3;
+      } else {
+        p.rotation.z=0;p.position.y=0;
+        p.userData.armL.rotation.x*=0.85;p.userData.armR.rotation.x*=0.85;
+      }
+    }
+    if(mode!=='sleep')p.rotation.z=0;
+  });
+  updCam();
+  R.render(S,cam);
+}
+document.getElementById('load').style.display='none';
+updCam(); animate();
+
+// ---- SICHQONCHA ----
+let drag=false,px=0;
+addEventListener('mousedown',e=>{drag=true;px=e.clientX;});
+addEventListener('mouseup',()=>drag=false);
+addEventListener('mousemove',e=>{if(drag){camAng-=(e.clientX-px)*0.006;px=e.clientX;}});
+addEventListener('wheel',e=>{camDist=Math.max(14,Math.min(40,camDist+e.deltaY*0.02));},{passive:true});
+addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();R.setSize(innerWidth,innerHeight);});
+setInterval(()=>{if(!drag)camAng+=0.0015;},30);
+</script>
+</body>
+</html>
